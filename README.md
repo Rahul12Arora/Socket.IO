@@ -182,4 +182,94 @@ ChatGroupSchema.plugin(require("mongoose-delete"), {
 module.exports = mongoose.model("ChatGroup", ChatGroupSchema);
 ```
 
+Client-Side/FrontEnd
 
+**Socket.js**
+
+```
+import { io } from 'socket.io-client';
+
+// "undefined" means the URL will be computed from the `window.location` object
+const URL = process.env.NODE_ENV === 'production' ? 'http://localhost:5003' : 'http://localhost:5003';
+
+export const socket = io(URL);
+```
+
+
+```
+import React, { useState, useEffect } from 'react';
+import { socket } from '../socket';
+
+export function SocketMessage() {
+  const [value, setValue] = useState('');
+  const [recievedMessages, setRecievedMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {    
+    socket.on('connect', () => {
+      console.log('Client is Connected to server');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Client Disconnected from server');
+    });
+
+    // socket.on('message',(message)=>{
+    //   setRecievedMessages([...recievedMessages, message]);
+    //   console.log('message recieved from server : ',message)
+    // })
+
+    socket.on('message', (message) => {
+      setRecievedMessages(prevMessages => [...prevMessages, message]);
+      console.log('Message received from server:', message);
+    });
+
+    // Clean up the socket connection when the component unmounts
+    return () => socket.disconnect();
+  }, []);
+
+  //send message
+  function onSubmit(event) {
+    event.preventDefault();
+    setIsLoading(true);
+
+    socket.timeout(5000).emit('message', value, () => {
+      setIsLoading(false);
+    });
+
+  }
+
+  //connect and disconnect
+  function connect() {
+    socket.connect();
+  }
+
+  function disconnect() {
+    socket.disconnect();
+  }
+
+
+  return (
+    <>
+    <form onSubmit={ onSubmit }>
+      <input onChange={ e => setValue(e.target.value) } />
+
+      <button type="submit" disabled={ isLoading }>Submit</button>
+    </form>
+
+    <div>
+      <button onClick={ connect }>Connect</button>
+      <button onClick={ disconnect }>Disconnect</button>
+    </div>
+
+    <div>
+      {recievedMessages.length>0 && recievedMessages.map((el)=>{
+        return <div>{el}</div>
+      })}
+
+    </div>
+
+    </>
+  );
+}
+```
